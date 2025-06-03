@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private Gallery</title>
+  <script src="https://cdn.tailwindcss.com">
+ </script>
+<style>
+.gallery-item {
+    transition: all 0.3s ease;
+  }
+.gallery-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
+  }
+.fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+.gallery-img {
+    height: 192px;
+    object-fit: cover;
+    width: 100%;
+   }
+.modal-transition {
+    transition: opacity 0.3s ease;
+  }
+  </style>
+</head>
+<body class="bg-gray-900 min-h-screen">
+             <!-- Navigation -->
+<nav class="bg-gray-800 border-b border-gray-700 py-4 px-6 flex justify-between items-center">
+  <div class="flex items-center space-x-3">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+       </svg>
+      <span class="text-xl font-bold text-pink-500">Private Gallery</span>
+    </div>
+    <button id="logoutBtn" class="text-gray-300 hover:text-pink-500 flex items-center space-x-1 transition-colors duration-200">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd" />
+      </svg>
+      <span>Logout</span>
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-4 py-8 fade-in">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-2xl md:text-3xl font-bold text-pink-500">Welcome to Your Private Collection</h1>
+      <div class="relative w-48">
+        <input type="text" placeholder="Search..." class="w-full bg-gray-700 text-white px-4 py-2 rounded-lg pl-10 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+    </div>
+           <!-- Gallery Grid -->
+<div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+     </div>
+</main>
+<!-- Images will be dynamically inserted here -->
+  <!-- Modal for image preview -->
+<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center p-4">
+  <div class="relative max-w-4xl w-full">
+    <button id="closeModal" class="absolute -top-10 right-0 text-white hover:text-emerald-400 text-3xl">
+      </button>
+    <img id="modalImage" src="" alt="" class="max-h-[90vh] mx-auto">
+    <div class="text-white text-center mt-4 text-lg" id="imageCaption">
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check authentication
+  const token = localStorage.getItem('authToken');
+  if (!token) {
+    window.location.href = '/auth/verify.html';
+    return;
+  }
+
+  // Logout functionality
+  const logoutBtn = document.getElementById('logoutBtn');
+  logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('username');
+    window.location.href = '/index.html';
+  });
+
+  // Function to fetch images
+  async function fetchImages(searchTerm = '') {
+    try {
+      const response = await fetch(`/.netlify/functions/images?q=${encodeURIComponent(searchTerm)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch images');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching images:', error);
+      return [];
+    }
+  }
+
+  // Function to render gallery items
+  function renderGallery(images) {
+    const galleryGrid = document.getElementById('galleryGrid');
+    galleryGrid.innerHTML = '';
+
+    images.forEach(image => {
+      const galleryItem = document.createElement('div');
+      galleryItem.className = 'gallery-item bg-gray-800 rounded-xl overflow-hidden border border-gray-700';
+      
+      galleryItem.innerHTML = `
+        <div class="h-48 bg-gray-700 overflow-hidden">
+          <img src="${image.thumbnail || image.url}" alt="${image.name}" class="gallery-img" 
+               onerror="this.onerror=null;this.src='https://via.placeholder.com/300?text=Image+Not+Found'">
+        </div>
+        <div class="p-4">
+          <h3 class="text-lg font-semibold text-white truncate">${image.name}</h3>
+        </div>
+      `;
+      
+      galleryGrid.appendChild(galleryItem);
+    });
+  }
+
+  // Initial load
+  const initialImages = await fetchImages();
+  renderGallery(initialImages);
+
+  // Search functionality
+  const searchInput = document.querySelector('input[type="text"]');
+  searchInput.addEventListener('input', async (e) => {
+    const searchTerm = e.target.value;
+    const filteredImages = await fetchImages(searchTerm);
+    renderGallery(filteredImages);
+  });
+});
+</script>
+</body>
+</html>
